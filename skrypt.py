@@ -284,14 +284,14 @@ class Transformacje:
        y00 = ygk * 0.999923 + strefa * 1000000 + 500000
        return(x00,y00)
    
-    def dXYZ(self, xa, ya, za, xb, yb, zb):
+    def get_dXYZ(self, xa, ya, za, xb, yb, zb):
         '''
-       Funkcja ta służy do oblicenia różnic, pomiędzy wspolrzednymi, punktów A oraz B.
+        funkcja liczy macierz różnicy współrzednych punktów A i B, która jest potrzebna do obliczenia macierzy neu
 
         Parametry
         ----------
         XA, YA, ZA, XB, YB, ZB: FLOAT
-             wsp. orto-kart. 
+             współrzędne w układzie orto-kartezjańskim, 
 
         Returns
         -------
@@ -299,21 +299,20 @@ class Transformacje:
             macierz różnicy współrzędnych
 
         '''
+
         dXYZ = np.array([xb-xa, yb-ya, zb-za])
-        return(dXYZ)
+        return dXYZ
     
-    
-    def rneu(self, fi, lam):
+    def rneu(self, f, l):
         '''
-        Funkcja ta służy do tworznia macierzy obrotu (R),
-        Macierz ta jest konieczna do macierzy NEU
+        Funkcja tworzy macierz obrotu R, która jest potrzebna do obliczenia macierzy neu
 
         Parametry
         ----------
-        fi : FLOAT
-            [st. dz.] - szerokość 
-        lam : FLOAT
-            [st. dz.] - długośc 
+        f : FLOAT
+            [stopnie dziesiętne] - szerokość geodezyjna..
+        l : FLOAT
+            [stopnie dziesiętne] - długośc geodezyjna.
 
         Returns
         -------
@@ -321,60 +320,45 @@ class Transformacje:
             macierz obrotu R
              
         '''
-        fi=np.radians(fi)
-        lam=np.radians(lam)
-        R = np.array([[-np.sin(fi)*np.cos(lam), -np.sin(lam), np.cos(fi)*np.cos(lam)],
-                      [-np.sin(fi)*np.sin(lam),  np.cos(lam), np.cos(fi)*np.sin(lam)],
-                      [np.cos(fi),             0,         np.sin(fi)          ]])
-        return(R)
-    
-    
-    def xyz2neu(self, fi, lam, xa, ya, za, xb, yb, zb):
+
+        f = np.radians(f)
+        l = np.radians(l)
+        R = np.array([[-np.sin(f)*np.cos(l), -np.sin(l), np.cos(f)*np.cos(l)],
+                      [-np.sin(f)*np.sin(l),  np.cos(l), np.cos(f)*np.sin(l)],
+                      [np.cos(f),             0,         np.sin(f)]])
+        return R
+
+    def xyz2neu(self, xa, ya, za, xb, yb, zb):
         '''
-        Układ współrzędnych horyzontalnych opisuje położenie obiektów astronomicznych względem
-        lokalnego horyzontu. Zenit i nadir, są ważnymi punktami w tym układzie. Współrzędne horyzontalne
-        zmieniają się wraz z ruchem obserwatora i czasem, co pozwala określić chwilową pozycję obiektów na niebie.
+        Układ współrzędnych horyzontalnych – układ współrzędnych astronomicznych, w którym oś główną stanowi 
+        lokalny kierunek pionu, a płaszczyzną podstawową jest płaszczyzna horyzontu astronomicznego. 
+        Biegunami układu są zenit i nadir. Ich położenie na sferze niebieskiej zależy od współrzędnych geograficznych 
+        obserwatora oraz momentu obserwacji, tak więc współrzędne horyzontalne opisują jedynie chwilowe położenie ciała niebieskiego.
 
         Parametry
         ----------
-        fi : FLOAT
-            [st. dz.] - szerokość 
-        lam : FLOAT
-            [st. dz.] - długośc
+        f : FLOAT
+            [stopnie dziesiętne] - szerokość geodezyjna..
+        l : FLOAT
+            [stopnie dziesiętne] - długośc geodezyjna.
         XA, YA, ZA, XB, YB, ZB: FLOAT
-             współrzędne orto-kartezjańskie
+             współrzędne w układzie orto-kartezjańskim, 
 
         Returns
         -------
-        neu : STR
-            wsp. horyz.
-            
-
+        n , e, u : STR
+            współrzędne horyzontalne
         '''
-        dX = Transformacje.dXYZ(self, xa, ya, za, xb, yb, zb)
-        R = Transformacje.rneu(self, fi,lam)
+
+        p = np.sqrt(X0**2+Y0**2)
+        f = np.arctan(Z0/(p*(1-self.e2)))
+        l = np.arctan(Y0/X0)
+        dX = self.get_dXYZ(xa, ya, za, xb, yb, zb)
+        R = self.rneu(f, l)
         neu = R.T @ dX
         n = neu[0];   e = neu[1];   u = neu[2]
         n = "%.16f"%n; e = "%.16f"%e; u="%.16f"%u
-        dlugosc = []
-        xx = len(n); dlugosc.append(xx)
-        yy = len(e); dlugosc.append(yy)
-        zz = len(u); dlugosc.append(zz)
-        P = 50
-        
-        while xx < P:
-            n = str(" ") + n
-            xx += 1
-        
-        while yy < P:
-            e = str(" ") + e
-            yy += 1
-            
-        while zz < P:
-            u = str(" ") + u
-            zz +=1
-            
-        return(n, e, u)
+        return f'{str(neu)} \n'
     
     def wczytanie(self, Dane):
        with open (Dane,"r") as plik:
@@ -594,8 +578,8 @@ if __name__ == "__main__":
         'XYZ_BLH': 'xyz2flh',
         'BLH_XYZ': 'flh2xyz',
         'XYZ_NEU': 'xyz2neu',
-        'BL_PL2000': 'PL2000',
-        'BL_PL1992': 'PL1992'
+        'BL_PL2000': 'flh2PL2000',
+        'BL_PL1992': 'flh2PL1992'
     }
 
     argumenty = sys.argv[1:]
@@ -635,8 +619,8 @@ if __name__ == "__main__":
                         if index == 0:
                             X0, Y0, Z0 = x, y, z
                             continue
-                        result = geo.xyz2neu(X0, Y0, Z0, x, y, z)
-                    wynik.write(' '.join(map(str, result)) + '\n')
+                        neu = geo.xyz2neu(X0, Y0, Z0, x, y, z)
+                        wynik.write(' '.join(neu) + '\n')
                 else:
                     fi_str, lam_str = linia.split(',')
                     fi, lam = float(fi_str), float(lam_str)
